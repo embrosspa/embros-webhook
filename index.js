@@ -6,7 +6,7 @@ app.use(express.json());
 //  CONFIGURACIÓN — edita solo estos valores
 // ============================================================
 const VERIFY_TOKEN = "embros2024";          // Token de verificación (no cambiar)
-const WA_PHONE_NUMBER_ID = "116665187766545070"; // Phone Number ID de tu app
+const WA_PHONE_NUMBER_ID = "1181823891680999"; // Phone Number ID número real Embros
 const VENDEDOR_NUMERO = "56959441334";      // Número del vendedor (sin + ni espacios)
 // El token permanente lo agregarás como variable de entorno en Render
 const ACCESS_TOKEN = process.env.WA_ACCESS_TOKEN || "";
