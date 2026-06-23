@@ -5,14 +5,14 @@ app.use(express.json());
 // ============================================================
 //  CONFIGURACIÓN — edita solo estos valores
 // ============================================================
-const VERIFY_TOKEN = "embros2024";          // Token de verificación (no cambiar)
-const WA_PHONE_NUMBER_ID = "1181823891680999"; // Phone Number ID número real Embros
-const VENDEDOR_NUMERO = "56959441334";      // Número del vendedor (sin + ni espacios)
-// El token permanente lo agregarás como variable de entorno en Render
+const VERIFY_TOKEN = "embros2024";
+const WA_PHONE_NUMBER_ID = "1181823891680999";
+const VENDEDOR_NUMERO = "56959441334";
+const PLANTILLA_NOMBRE = "cotizacion_rapida_embros";
+const PLANTILLA_IDIOMA = "es";
 const ACCESS_TOKEN = process.env.WA_ACCESS_TOKEN || "";
 // ============================================================
 
-// Mapeos para mostrar texto legible en el mensaje
 const PRODUCTO_MAP = {
   gorras: "Gorras bordadas",
   poleras: "Poleras / ropa corporativa",
@@ -64,31 +64,32 @@ app.get("/webhook", (req, res) => {
   }
 });
 
-// ─── POST: recibe los datos del Flow ─────────────────────────
+// ─── POST: recibe mensajes y respuestas del Flow ──────────────
 app.post("/webhook", async (req, res) => {
   try {
     const body = req.body;
-
-    // Confirmar recepción a Meta inmediatamente
     res.sendStatus(200);
 
     const entry = body?.entry?.[0];
     const changes = entry?.changes?.[0];
     const value = changes?.value;
 
-    // Solo procesar mensajes entrantes
     if (!value?.messages) return;
 
     const message = value.messages[0];
-    const clienteNumero = message.from; // número del cliente
+    const clienteNumero = message.from;
 
-    // Detectar si es respuesta de un Flow (tipo "interactive")
+    // Si es mensaje de texto normal → enviar plantilla con Flow
+    if (message.type === "text") {
+      console.log(`📩 Mensaje de texto de ${clienteNumero} — enviando Flow`);
+      await enviarPlantilla(clienteNumero);
+      return;
+    }
+
+    // Si es respuesta del Flow completado
     if (message.type === "interactive" && message.interactive?.type === "nfm_reply") {
-      const flowData = JSON.parse(
-        message.interactive.nfm_reply.response_json
-      );
+      const flowData = JSON.parse(message.interactive.nfm_reply.response_json);
 
-      // Extraer campos
       const producto = PRODUCTO_MAP[flowData.producto] || flowData.producto || "—";
       const cantidad = CANTIDAD_MAP[flowData.cantidad] || flowData.cantidad || "—";
       const logo = LOGO_MAP[flowData.logo] || flowData.logo || "—";
@@ -97,8 +98,8 @@ app.post("/webhook", async (req, res) => {
       const nombre = flowData.nombre || "—";
       const comentario = flowData.comentario || "Sin comentario";
 
-      // Armar mensaje de resumen para el vendedor
-      const resumen = `🧵 *NUEVO LEAD — EMBROS*\n\n` +
+      const resumen =
+        `🧵 *NUEVO LEAD — EMBROS*\n\n` +
         `👤 *Cliente:* ${nombre}\n` +
         `📱 *WhatsApp:* +${clienteNumero}\n` +
         `🏢 *Tipo:* ${tipoCliente}\n\n` +
@@ -110,12 +111,10 @@ app.post("/webhook", async (req, res) => {
         `━━━━━━━━━━━━━━━\n` +
         `_Responde directo a +${clienteNumero}_`;
 
-      // Enviar resumen al vendedor
       await enviarMensaje(VENDEDOR_NUMERO, resumen);
-      console.log(`✅ Resumen enviado al vendedor para lead: ${nombre}`);
+      console.log(`✅ Resumen enviado al vendedor — Lead: ${nombre}`);
 
-      // Enviar mensaje de confirmación al cliente
-      const confirmacion = `¡Hola ${nombre}! 👋\n\nRecibimos tu solicitud de cotización en *Embros*. Un ejecutivo te contactará pronto con los detalles.\n\n¡Gracias por preferirnos! 🧵`;
+      const confirmacion = `¡Hola ${nombre}! 👋\n\nRecibimos tu solicitud en *Embros*. Un ejecutivo te contactará pronto.\n\n¡Gracias por preferirnos! 🧵`;
       await enviarMensaje(clienteNumero, confirmacion);
     }
   } catch (err) {
@@ -123,7 +122,39 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
-// ─── Función para enviar mensajes por WhatsApp ───────────────
+// ─── Enviar plantilla con Flow al cliente ─────────────────────
+async function enviarPlantilla(destinatario) {
+  const url = `https://graph.facebook.com/v19.0/${WA_PHONE_NUMBER_ID}/messages`;
+
+  const payload = {
+    messaging_product: "whatsapp",
+    to: destinatario,
+    type: "template",
+    template: {
+      name: PLANTILLA_NOMBRE,
+      language: { code: PLANTILLA_IDIOMA },
+    },
+  };
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    console.error("Error enviando plantilla:", JSON.stringify(data));
+  } else {
+    console.log(`✅ Plantilla enviada a ${destinatario}`);
+  }
+  return data;
+}
+
+// ─── Enviar mensaje de texto ──────────────────────────────────
 async function enviarMensaje(destinatario, texto) {
   const url = `https://graph.facebook.com/v19.0/${WA_PHONE_NUMBER_ID}/messages`;
 
@@ -150,7 +181,7 @@ async function enviarMensaje(destinatario, texto) {
   return data;
 }
 
-// ─── Ruta de salud para verificar que el servidor está vivo ──
+// ─── Ruta de salud ────────────────────────────────────────────
 app.get("/", (req, res) => {
   res.send("✅ Embros Webhook activo y funcionando");
 });
