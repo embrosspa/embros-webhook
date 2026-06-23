@@ -3,7 +3,7 @@ const app = express();
 app.use(express.json());
 
 // ============================================================
-//  CONFIGURACIÓN — edita solo estos valores
+//  CONFIGURACIÓN
 // ============================================================
 const VERIFY_TOKEN = "embros2024";
 const WA_PHONE_NUMBER_ID = "309953424431554";
@@ -49,7 +49,7 @@ const TIPO_MAP = {
   institucion: "Institución / colegio / organización",
 };
 
-// ─── GET: verificación del webhook con Meta ───────────────────
+// ─── GET: verificación del webhook ───────────────────────────
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
@@ -64,7 +64,7 @@ app.get("/webhook", (req, res) => {
   }
 });
 
-// ─── POST: recibe mensajes y respuestas del Flow ──────────────
+// ─── POST: recibe mensajes ────────────────────────────────────
 app.post("/webhook", async (req, res) => {
   try {
     const body = req.body;
@@ -79,14 +79,14 @@ app.post("/webhook", async (req, res) => {
     const message = value.messages[0];
     const clienteNumero = message.from;
 
-    // Si es mensaje de texto normal → enviar plantilla con Flow
+    // Mensaje de texto → enviar plantilla con Flow
     if (message.type === "text") {
-      console.log(`📩 Mensaje de texto de ${clienteNumero} — enviando Flow`);
+      console.log(`📩 Mensaje de ${clienteNumero} — enviando Flow`);
       await enviarPlantilla(clienteNumero);
       return;
     }
 
-    // Si es respuesta del Flow completado
+    // Respuesta del Flow completado
     if (message.type === "interactive" && message.interactive?.type === "nfm_reply") {
       const flowData = JSON.parse(message.interactive.nfm_reply.response_json);
 
@@ -112,7 +112,7 @@ app.post("/webhook", async (req, res) => {
         `_Responde directo a +${clienteNumero}_`;
 
       await enviarMensaje(VENDEDOR_NUMERO, resumen);
-      console.log(`✅ Resumen enviado al vendedor — Lead: ${nombre}`);
+      console.log(`✅ Resumen enviado — Lead: ${nombre}`);
 
       const confirmacion = `¡Hola ${nombre}! 👋\n\nRecibimos tu solicitud en *Embros*. Un ejecutivo te contactará pronto.\n\n¡Gracias por preferirnos! 🧵`;
       await enviarMensaje(clienteNumero, confirmacion);
@@ -122,7 +122,7 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
-// ─── Enviar plantilla con Flow al cliente ─────────────────────
+// ─── Enviar plantilla con botón de Flow ──────────────────────
 async function enviarPlantilla(destinatario) {
   const url = `https://graph.facebook.com/v19.0/${WA_PHONE_NUMBER_ID}/messages`;
 
@@ -133,6 +133,21 @@ async function enviarPlantilla(destinatario) {
     template: {
       name: PLANTILLA_NOMBRE,
       language: { code: PLANTILLA_IDIOMA },
+      components: [
+        {
+          type: "button",
+          sub_type: "flow",
+          index: "0",
+          parameters: [
+            {
+              type: "action",
+              action: {
+                flow_token: "unused"
+              }
+            }
+          ]
+        }
+      ]
     },
   };
 
