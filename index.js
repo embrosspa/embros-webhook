@@ -6,7 +6,7 @@ app.use(express.json());
 //  CONFIGURACIÓN
 // ============================================================
 const VERIFY_TOKEN = "embros2024";
-const WA_PHONE_NUMBER_ID = "309953424431554";
+const WA_PHONE_NUMBER_ID = "1181823891680999";
 const VENDEDOR_NUMERO = "56959441334";
 const PLANTILLA_NOMBRE = "cotizacion_rapida_embros";
 const PLANTILLA_IDIOMA = "es";
